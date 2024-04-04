@@ -7,6 +7,7 @@ const char* password = "vivaelmaco";
 byte id = 2;
 byte timeout = 1;
 unsigned long lastpacketmillis = 0;        // will store last time LED was updated
+unsigned long connectedtimemillis = 0;
 
 WiFiUDP Udp;
 unsigned int localUdpPort = 42069;  // local port to listen on
@@ -42,6 +43,10 @@ void setup()
 
   Udp.begin(localUdpPort);
   Serial.printf("Now listening at IP %s, UDP port %d\n", WiFi.localIP().toString().c_str(), localUdpPort);
+
+  setLights(80,80,80);
+  delay(100);
+  setLights(0,0,0);
 }
 
 
@@ -50,7 +55,7 @@ void loop()
   int packetSize = Udp.parsePacket();
   if (packetSize){
     // receive incoming UDP packets
-    Serial.printf("Received %d bytes from %s, port %d\n", packetSize, Udp.remoteIP().toString().c_str(), Udp.remotePort());
+    //Serial.printf("Received %d bytes from %s, port %d\n", packetSize, Udp.remoteIP().toString().c_str(), Udp.remotePort());
     int len = Udp.read(incomingPacket, 255);
     if (len > 0)
     {
@@ -68,7 +73,7 @@ void loop()
       Udp.endPacket();
       Serial.println(SendPacket);
     }else if(command == 2){ //Set lights commmand
-      //Serial.println("Setting Lights");
+      //Serial.println("SL");
       analogWrite(RedPin,incomingPacket[1]);
       analogWrite(GreenPin,incomingPacket[2]);
       analogWrite(BluePin,incomingPacket[3]);
@@ -79,11 +84,15 @@ void loop()
   }
 
   if(millis()>lastpacketmillis+60000*timeout){
+    setLights(0,0,0);
     digitalWrite(LED_BUILTIN, HIGH);
-    analogWrite(RedPin,0);
-    analogWrite(GreenPin,0);
-    analogWrite(BluePin,0);
   }
+}
+
+void setLights(int r, int g, int b){
+    analogWrite(RedPin,r);
+    analogWrite(GreenPin,g);
+    analogWrite(BluePin,b);
 }
 
 

@@ -5,7 +5,7 @@ using UnityEngine;
 public class LightScript : MonoBehaviour
 {
     public int ID = 1;
-    public string IP = "unassigned";
+    public string IP = "NONE";
     public int NumStripLeds = 1; //number of unique colors
     public GameObject Light1;
     public Color[] lightColors;

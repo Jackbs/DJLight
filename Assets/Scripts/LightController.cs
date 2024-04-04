@@ -13,6 +13,8 @@ public class LightController : MonoBehaviour
 {
     //State Vars
     String State = "FlashAllColor"; //Allrainbow,FlashAllColor
+    public bool faketrigger = false;
+    public float faketriggertime = 1.0f;
 
     //UI Interfaces
     public Text CurrentIPText;
@@ -31,6 +33,7 @@ public class LightController : MonoBehaviour
     //Network settings
     public int sendTimeout = 20;
     public int reciveTimeout = 20;
+    public int port = 42069;
     public byte subnet = 1;
     public bool scanning = false;
     public byte currentscan = 1;
@@ -50,38 +53,43 @@ public class LightController : MonoBehaviour
     {
         lights = GameObject.FindGameObjectsWithTag("Light");
         Debug.Log("number of light scene has: "+lights.Length.ToString());
+        if(faketrigger){
+            InvokeRepeating("ChangeLights", 0.0f, faketriggertime);
+        }
+        //TODO, load ips from file
+        //TODO, check current ip's still exsist on the network, if not change to NONE for ip feild
     }
 
     void FixedUpdate(){ //update with physics engine, by default locked to 50hz     
         GetAvgSamples();
-        //RawDBGraph.AddValue(AvgRawDB+80);
 
-        //ChangeLights();
-        UpdateLights();
+        if (scanning) {
+            EveryFrameScan();
+        }else{
+            UpdateLights();
+        }
+        AvgSamples();
     }
 
     public void ChangeLights(){ //actually change the lights (Color ect), called on fixedupdate (every 20 ms)
-        if(State == "FlashAllColor"){
-            //if(MicInput.MicLoudnessinDecibels > -60.0f){
-                //Debug.Log("Beat Detected at DB :"+MicInput.MicLoudnessinDecibels.ToString());         
-                if (Time.time > nextActionTime ) {
-                    nextActionTime += minChangePeriod;
-                    foreach (var light in lights) {
-                        LightScript CurrentLight = light.GetComponent<LightScript>();
-                        //Color setColor = Color.HSVToRGB(UnityEngine.Random.Range(1, 255),1,0.5f); //set to random color
-                        Color setColor = Color.HSVToRGB(UnityEngine.Random.Range(0.0f, 1.0f),1,1); //set to random color
-                        CurrentLight.lightColors[0] = setColor;
-                    }
-                //}   
-            }
-        }else if(State == "Allrainbow"){
-            foreach (var light in lights) {
-                LightScript CurrentLight = light.GetComponent<LightScript>();
-                Color.RGBToHSV(CurrentLight.lightColors[0], out float H, out float S, out float V);
-                float hugh = H;
-                hugh = hugh + 0.001f;
-                Color setColor = Color.HSVToRGB(hugh,1,0.5f);
-                CurrentLight.lightColors[0] = setColor;
+        if (Time.time > nextActionTime ) { //check to make sure this issn't triggered more than once every minChangePeriod
+            nextActionTime += minChangePeriod;
+            if (State == "FlashAllColor"){
+                foreach (var light in lights) {
+                    LightScript CurrentLight = light.GetComponent<LightScript>();
+                    //Color setColor = Color.HSVToRGB(UnityEngine.Random.Range(1, 255),1,0.5f); //set to random color
+                    Color setColor = Color.HSVToRGB(UnityEngine.Random.Range(0.0f, 1.0f),1,1); //set to random color
+                    CurrentLight.lightColors[0] = setColor;
+                }  
+            }else if(State == "Allrainbow"){
+                foreach (var light in lights) {
+                    LightScript CurrentLight = light.GetComponent<LightScript>();
+                    Color.RGBToHSV(CurrentLight.lightColors[0], out float H, out float S, out float V);
+                    float hugh = H;
+                    hugh = hugh + 0.001f;
+                    Color setColor = Color.HSVToRGB(hugh,1,0.5f);
+                    CurrentLight.lightColors[0] = setColor;
+                }
             }
         }
     }
@@ -97,10 +105,7 @@ public class LightController : MonoBehaviour
     }
 
     void Update(){
-        if(scanning){
-            EveryFrameScan();
-         }
-        AvgSamples();
+
         //RawDBGraph.AddValue(MicInput.MicLoudnessinDecibels+80);
 
         //send new packet every frame
@@ -112,24 +117,27 @@ public class LightController : MonoBehaviour
     }
 
     void UpdateLights(){ //update lights via network
-        foreach (var light in lights) {          
+       
+        foreach (var light in lights) {
+
             LightScript CurrentLight = light.GetComponent<LightScript>();
-            if(Char.IsDigit(CurrentLight.IP[0])){ //check to make sure ip has been assigned
+            //Debug.Log("Currentlight IP: "+ CurrentLight.IP +" ID: "+ CurrentLight.ID);
+            if (CurrentLight.IP != "NONE") { //check to make sure ip has been assigned
+
                 byte r,g,b;
                 r = (byte)((CurrentLight.lightColors[0].r)*255);
                 g = (byte)((CurrentLight.lightColors[0].g)*255);
                 b = (byte)((CurrentLight.lightColors[0].b)*255);
-                byte[] Packet = new byte[] {0x02,r,g,b}; 
-                SendPacket(Packet,new UdpClient(CurrentLight.IP, 42069));
-            }else{
-                return;
+                byte[] Packet = new byte[] {0x02,r,g,b};
+                //Debug.Log("Sending update packet to light [ID,IP]: [" + CurrentLight.IP + "," + CurrentLight.IP + "]");
+                SendPacket(Packet,new UdpClient(CurrentLight.IP, port));
             }
             
         }
 
-        //SendPacket(Packet,new UdpClient("192.168.1.147", 42069));
-        //SendPacket(Packet,new UdpClient("192.168.10.179", 42069));
-        //SendPacket(Packet,new UdpClient("192.168.10.190", 42069));
+        //SendPacket(Packet,new UdpClient("192.168.1.147", port));
+        //SendPacket(Packet,new UdpClient("192.168.10.179", port));
+        //SendPacket(Packet,new UdpClient("192.168.10.190", port));
     }
 
     void SendPacket(Byte[] sendBytes, UdpClient Client){
@@ -144,11 +152,12 @@ public class LightController : MonoBehaviour
     void EveryFrameScan(){
         int addr = currentscan;
         String IP = "192.168."+subnet.ToString()+"."+addr.ToString();
-        Debug.Log("Trying To Fetch ID from Client at: "+IP);
+        //Debug.Log("Trying To Fetch ID from Client at: "+IP);
+        //Debug.Log("Scanning Client");
         //CurrentIPText.text = "Current IP: "+IP;
         //CurrentIPText.text = IP;
-        
-        UdpClient CurrentClient = new UdpClient(IP, 42069);
+
+        UdpClient CurrentClient = new UdpClient(IP, port);
         int id = GetID(CurrentClient);
         if(id != 0){
             foreach (var light in lights) {
@@ -169,6 +178,7 @@ public class LightController : MonoBehaviour
 
     public void ScanNetForLights(){
         if(!scanning){
+            Debug.Log("Scanning Entire Network");
             scanning = true;
             currentscan = 1;
          }

@@ -472,7 +472,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   ID: 1
-  IP: sasaas
+  IP: NONE
   NumStripLeds: 1
   Light1: {fileID: 1963100200}
   lightColors: []
@@ -1867,12 +1867,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 97ba9c329336369439d51b52cd727fc6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  faketrigger: 0
+  faketriggertime: 1
   CurrentIPText: {fileID: 38321818}
   minChangePeriod: 0.4
   lights: []
   sendTimeout: 30
   reciveTimeout: 30
-  subnet: 1
+  port: 42069
+  subnet: 18
   scanning: 0
   currentscan: 1
   RawDBGraph: {fileID: 0}
@@ -2013,7 +2016,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   ID: 2
-  IP: assa
+  IP: 192.168.18.45
   NumStripLeds: 1
   Light1: {fileID: 867203421}
   lightColors: []
