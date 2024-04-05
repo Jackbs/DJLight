@@ -8,11 +8,15 @@ using System.Text;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
+using Random = UnityEngine.Random;
 
 public class LightController : MonoBehaviour
 {
+    public enum SysStates { FlashAllColor, SimpleRainbowAll, Bla1, Bla2 };
+
+    public SysStates State = SysStates.FlashAllColor;
     //State Vars
-    String State = "FlashAllColor"; //Allrainbow,FlashAllColor
+
     public bool faketrigger = false;
     public float faketriggertime = 1.0f;
 
@@ -49,6 +53,11 @@ public class LightController : MonoBehaviour
     private float nextUpdateTime = 0.0f;
     public float UpdatePeriod = 0.02f;
     // Start is called before the first frame update
+
+    public float idleRainBowSpeed = 0.002f;
+    //COlOR referenc
+    Color GlobalRefColor = Color.red;
+
     void Start()
     {
         lights = GameObject.FindGameObjectsWithTag("Light");
@@ -66,30 +75,71 @@ public class LightController : MonoBehaviour
         if (scanning) {
             EveryFrameScan();
         }else{
-            UpdateLights();
+            NetUpdateLights();
+            FixedUpdateLights();
         }
+        GetAvgSamples();
+    }
+
+
+
+    void Update() {
         AvgSamples();
+    }
+
+    Color ChangeHughBy(Color thisColor, float offset) {
+        Color.RGBToHSV(thisColor, out float H, out float S, out float V);
+        float hugh = H;
+        hugh = hugh + offset;
+        return Color.HSVToRGB(hugh, 1.0f, 1.0f);
+    }
+
+    void FixedUpdateLights(){
+        switch(State) {
+            case SysStates.SimpleRainbowAll:
+                foreach (var light in lights) {
+                    LightScript CurrentLight = light.GetComponent<LightScript>();
+                    GlobalRefColor = ChangeHughBy(GlobalRefColor, idleRainBowSpeed);
+
+                    if (CurrentLight.CurrentType == LightScript.LightType.StripSingleColor) {
+                        CurrentLight.lightColors[0] = GlobalRefColor;
+                    } else if (CurrentLight.CurrentType == LightScript.LightType.StripMultiColor) {
+                        CurrentLight.lightColors[0] = GlobalRefColor;
+                        for (int i = 0; i < CurrentLight.lightColors.Length-1; i++) {
+                            CurrentLight.lightColors[i+1] = ChangeHughBy(CurrentLight.lightColors[i],0.01f);
+                        }
+                    } else {
+                        Debug.Log("Light is unknowen type");
+                    }
+                }
+                break;
+
+
+            default:
+                break;
+        }
     }
 
     public void ChangeLights(){ //actually change the lights (Color ect), called on fixedupdate (every 20 ms)
         if (Time.time > nextActionTime ) { //check to make sure this issn't triggered more than once every minChangePeriod
             nextActionTime += minChangePeriod;
-            if (State == "FlashAllColor"){
+            if (State == SysStates.FlashAllColor) {
                 foreach (var light in lights) {
                     LightScript CurrentLight = light.GetComponent<LightScript>();
                     //Color setColor = Color.HSVToRGB(UnityEngine.Random.Range(1, 255),1,0.5f); //set to random color
                     Color setColor = Color.HSVToRGB(UnityEngine.Random.Range(0.0f, 1.0f),1,1); //set to random color
-                    CurrentLight.lightColors[0] = setColor;
+                    if(CurrentLight.CurrentType == LightScript.LightType.StripSingleColor) {
+                        CurrentLight.lightColors[0] = setColor;
+                    }else if(CurrentLight.CurrentType == LightScript.LightType.StripMultiColor) {
+                        for (int i = 0; i < CurrentLight.lightColors.Length; i++) {
+                            CurrentLight.lightColors[i] = setColor;
+                        }
+                    }else{
+                        Debug.Log("Light is unknowen type");
+                    }
                 }  
-            }else if(State == "Allrainbow"){
-                foreach (var light in lights) {
-                    LightScript CurrentLight = light.GetComponent<LightScript>();
-                    Color.RGBToHSV(CurrentLight.lightColors[0], out float H, out float S, out float V);
-                    float hugh = H;
-                    hugh = hugh + 0.001f;
-                    Color setColor = Color.HSVToRGB(hugh,1,0.5f);
-                    CurrentLight.lightColors[0] = setColor;
-                }
+            }else if(State == SysStates.SimpleRainbowAll) { //do something during beat detected
+                GlobalRefColor = ChangeHughBy(GlobalRefColor, Random.Range(0.4f, 0.8f));
             }
         }
     }
@@ -104,33 +154,57 @@ public class LightController : MonoBehaviour
         AvgRawDBCount++;
     }
 
-    void Update(){
-
-        //RawDBGraph.AddValue(MicInput.MicLoudnessinDecibels+80);
-
-        //send new packet every frame
-        /*
-        if(MicInput.MicLoudness > 0.001){
-            Debug.Log("Raw,DB: "+MicInput.MicLoudness.ToString()+","+MicInput.MicLoudnessinDecibels.ToString());
-        }
-        */
-    }
-
-    void UpdateLights(){ //update lights via network
+    void NetUpdateLights(){ //update lights via network
         foreach (var light in lights) {
             LightScript CurrentLight = light.GetComponent<LightScript>();
             if (CurrentLight.IP != null) { //check to make sure ip has been assigned
+                byte[] Packet = null;
+                if (CurrentLight.CurrentType == LightScript.LightType.StripSingleColor) {
+                    byte r, g, b;
+                    r = (byte)((CurrentLight.lightColors[0].r) * 255);
+                    g = (byte)((CurrentLight.lightColors[0].g) * 255);
+                    b = (byte)((CurrentLight.lightColors[0].b) * 255);
+                    Packet = new byte[] { 0x02, r, g, b };
+                } else if (CurrentLight.CurrentType == LightScript.LightType.StripMultiColor) {
+                    int NumLEDSend = 300;
+                    Packet = new byte[1 + (3 * NumLEDSend)]; //assign size of buffer depending on what we are sending
+                    Packet[0] = 0x04;
+                    for (int i = 0; i < NumLEDSend; i++) {
+                        byte r, g, b;
 
-                byte r,g,b;
-                r = (byte)((CurrentLight.lightColors[0].r)*255);
-                g = (byte)((CurrentLight.lightColors[0].g)*255);
-                b = (byte)((CurrentLight.lightColors[0].b)*255);
-                byte[] Packet = new byte[] {0x02,r,g,b};
+                        r = (byte)((CurrentLight.lightColors[i].r) * 255);
+                        g = (byte)((CurrentLight.lightColors[i].g) * 255);
+                        b = (byte)((CurrentLight.lightColors[i].b) * 255);
+
+                        Packet[(i * 3) + 1] = r;
+                        Packet[(i * 3) + 2] = g;
+                        Packet[(i * 3) + 3] = b;
+                    }
+                } else {
+                    Debug.LogError("NETUPDATE Light is unknowen type");
+                    
+                }
+
                 //Debug.Log("Sending update packet to light [ID,IP]: [" + CurrentLight.IP + "," + CurrentLight.IP + "]");
                 SendPacket(Packet,new UdpClient(CurrentLight.IP, port));
             }
             
         }
+        /*
+        int NumLEDSend = 3;
+                    Packet = new byte[1 + (3 * NumLEDSend)]; //assign size of buffer depending on what we are sending
+                    for (int i = 0; i < NumLEDSend; i++) {
+                        byte r, g, b;
+                        
+                        r = (byte)((CurrentLight.lightColors[i].r) * 255);
+                        g = (byte)((CurrentLight.lightColors[i].g) * 255);
+                        b = (byte)((CurrentLight.lightColors[i].b) * 255);
+
+                        Packet[(i * 3) + 1] = r;
+                        Packet[(i * 3) + 2] = g;
+                        Packet[(i * 3) + 3] = b;
+                    } 
+         */
 
         //SendPacket(Packet,new UdpClient("192.168.1.147", port));
         //SendPacket(Packet,new UdpClient("192.168.10.179", port));

@@ -8,6 +8,8 @@ public class LightScript : MonoBehaviour
 
     public LightType CurrentType = LightType.StripMultiColor;
 
+    public GameObject[] LEDS;
+
     public int ID = 1;
     public string IP = null;
     public int NumStripLeds = 1; //number of unique colors
@@ -17,13 +19,20 @@ public class LightScript : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        lightColors = new Color[NumStripLeds];
         lt1 = Light1.GetComponent<Light>();
+        //LEDS = GameObject.FindGameObjectsWithTag("LED");
+        NumStripLeds = LEDS.Length;
+        lightColors = new Color[NumStripLeds];
     }
 
     // Update is called once per frame
     void Update()
     {
         lt1.color = lightColors[0];
+        for(int i = 0; i < LEDS.Length; i++) {
+            //Debug.Log("Changing color of led: "+ LEDS[i].name);
+            var LEDRenderer = LEDS[i].GetComponent<Renderer>();
+            LEDRenderer.material.color = lightColors[i];
+        }
     }
 }
