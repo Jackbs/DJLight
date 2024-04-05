@@ -117,12 +117,9 @@ public class LightController : MonoBehaviour
     }
 
     void UpdateLights(){ //update lights via network
-       
         foreach (var light in lights) {
-
             LightScript CurrentLight = light.GetComponent<LightScript>();
-            //Debug.Log("Currentlight IP: "+ CurrentLight.IP +" ID: "+ CurrentLight.ID);
-            if (CurrentLight.IP != "NONE") { //check to make sure ip has been assigned
+            if (CurrentLight.IP != null) { //check to make sure ip has been assigned
 
                 byte r,g,b;
                 r = (byte)((CurrentLight.lightColors[0].r)*255);

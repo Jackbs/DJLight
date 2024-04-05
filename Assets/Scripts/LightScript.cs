@@ -4,8 +4,12 @@ using UnityEngine;
 
 public class LightScript : MonoBehaviour
 {
+    public enum LightType { StripSingleColor, StripMultiColor, SingleBrightLight, Strobe };
+
+    public LightType CurrentType = LightType.StripMultiColor;
+
     public int ID = 1;
-    public string IP = "NONE";
+    public string IP = null;
     public int NumStripLeds = 1; //number of unique colors
     public GameObject Light1;
     public Color[] lightColors;
