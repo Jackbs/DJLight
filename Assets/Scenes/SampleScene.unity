@@ -1684,7 +1684,7 @@ MonoBehaviour:
   currentscan: 1
   RawDBGraph: {fileID: 0}
   UpdatePeriod: 0.02
-  idleRainBowSpeed: 0.000002
+  idleRainBowSpeed: 0.002
 --- !u!1 &1521591532
 GameObject:
   m_ObjectHideFlags: 0

@@ -110,9 +110,9 @@ void loop()
       Serial.println(SendPacket);
     }else if(command == 2){ //Set lights commmand
       //Serial.println("SL");
-      analogWrite(RedPin,incomingPacket[1]);
-      analogWrite(GreenPin,incomingPacket[2]);
-      analogWrite(BluePin,incomingPacket[3]);
+      analogWrite(RedPin,incomingPacket[1]*4);
+      analogWrite(GreenPin,incomingPacket[2]*4);
+      analogWrite(BluePin,incomingPacket[3]*4);
     }else if(command == 3){ //Set timeout commmand
       timeout = incomingPacket[1]; //set timeout to second byte in message
     }else if(command == 4){ //SetMultipleLights
